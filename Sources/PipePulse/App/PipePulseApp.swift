@@ -29,6 +29,8 @@ private struct RootView: View {
         Group {
             if appState.isShowingOnboarding {
                 OnboardingView()
+            } else if appState.isShowingSettings {
+                SettingsView()
             } else {
                 DashboardView()
             }
@@ -36,10 +38,6 @@ private struct RootView: View {
         .frame(width: 420, height: 570)
         .task(id: refreshInterval) {
             await refreshLoop()
-        }
-        .sheet(isPresented: $appState.isShowingSettings) {
-            SettingsView()
-                .environmentObject(appState)
         }
     }
 

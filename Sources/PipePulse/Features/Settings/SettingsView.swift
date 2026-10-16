@@ -26,6 +26,7 @@ struct SettingsView: View {
             Form {
                 Section("Integrations") {
                     Toggle("Use GitHub Actions", isOn: $githubEnabled)
+                        .toggleStyle(GreenToggleStyle())
                     SecureField("GitHub personal access token", text: $githubToken)
                     TextField("Repositories", text: $githubRepositories, axis: .vertical)
                         .lineLimit(2...5)
@@ -75,7 +76,6 @@ struct SettingsView: View {
             .formStyle(.grouped)
             .padding(.horizontal, 8)
         }
-        .frame(width: 430, height: 500)
         .task {
             do {
                 githubToken = try KeychainStore().read(for: "github-actions") ?? ""
@@ -119,5 +119,32 @@ struct SettingsView: View {
         } catch {
             integrationMessage = error.localizedDescription
         }
+    }
+}
+
+private struct GreenToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                configuration.isOn.toggle()
+            }
+        } label: {
+            HStack {
+                configuration.label
+                Spacer()
+                Capsule()
+                    .fill(configuration.isOn ? Color.green : Color.gray.opacity(0.35))
+                    .frame(width: 38, height: 22)
+                    .overlay(alignment: configuration.isOn ? .trailing : .leading) {
+                        Circle()
+                            .fill(.white)
+                            .shadow(color: .black.opacity(0.15), radius: 1, y: 1)
+                            .padding(2)
+                    }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(configuration.isOn ? .isSelected : [])
     }
 }
