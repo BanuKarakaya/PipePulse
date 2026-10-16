@@ -16,7 +16,7 @@ struct SettingsView: View {
                 Text("Settings")
                     .font(.title3.weight(.semibold))
                 Spacer()
-                Button("Done") { appState.isShowingSettings = false }
+                Button("Done") { handleDone() }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
             }
@@ -27,19 +27,19 @@ struct SettingsView: View {
                 Section("Integrations") {
                     Toggle("Use GitHub Actions", isOn: $githubEnabled)
                         .toggleStyle(GreenToggleStyle())
-                    SecureField("GitHub personal access token", text: $githubToken)
-                    TextField("Repositories", text: $githubRepositories, axis: .vertical)
-                        .lineLimit(2...5)
-                    Text("Enter one repository per line, for example: acme/mobile-app")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button("Save GitHub integration") {
-                        saveGitHubIntegration()
-                    }
-                    if let integrationMessage {
-                        Text(integrationMessage)
+
+                    if githubEnabled {
+                        SecureField("GitHub personal access token", text: $githubToken)
+                        TextField("Repositories", text: $githubRepositories, axis: .vertical)
+                            .lineLimit(2...5)
+                        Text("Required. Enter one repository per line, for example: acme/mobile-app")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        if let integrationMessage {
+                            Text(integrationMessage)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
                     }
 
                     ForEach(CIProvider.allCases.filter { $0 != .githubActions }, id: \.self) { provider in
@@ -95,7 +95,13 @@ struct SettingsView: View {
         )
     }
 
-    private func saveGitHubIntegration() {
+    private func handleDone() {
+        guard githubEnabled else {
+            integrationMessage = nil
+            appState.isShowingSettings = false
+            return
+        }
+
         let token = githubToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let repositories = githubRepositories
             .split(whereSeparator: { $0 == "\n" || $0 == "," })
@@ -113,9 +119,9 @@ struct SettingsView: View {
         do {
             try KeychainStore().save(token, for: "github-actions")
             githubRepositories = repositories.joined(separator: "\n")
-            githubEnabled = true
-            integrationMessage = "Saved securely. Refreshing pipelines…"
+            integrationMessage = nil
             Task { await appState.refresh() }
+            appState.isShowingSettings = false
         } catch {
             integrationMessage = error.localizedDescription
         }

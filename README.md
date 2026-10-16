@@ -24,7 +24,7 @@ swift test
 
 ## GitHub Actions setup
 
-Open Settings, enable GitHub Actions, enter a GitHub personal access token with read access to Actions, and add repositories as `owner/name` (one per line). The token is stored in macOS Keychain. If the integration is not configured, the app continues to use mock data.
+Open Settings, enable GitHub Actions, enter a GitHub personal access token with read access to Actions, and add repositories as `owner/name` (one per line). Press Done to validate and save; the token is stored in macOS Keychain. If the integration is disabled, those fields stay hidden and the app uses mock data.
 
 ## Next steps
 
