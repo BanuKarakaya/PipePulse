@@ -6,9 +6,11 @@ struct SettingsView: View {
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("githubEnabled") private var githubEnabled = false
     @AppStorage("githubRepositories") private var githubRepositories = ""
+    @AppStorage("gitlabEnabled") private var gitlabEnabled = false
+    @AppStorage("gitlabRepositories") private var gitlabRepositories = ""
     @State private var githubToken = ""
+    @State private var gitlabToken = ""
     @State private var integrationMessage: String?
-    @State private var selectedProviders: Set<CIProvider> = [.githubActions, .gitLab]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,21 +44,36 @@ struct SettingsView: View {
                         }
                     }
 
-                    ForEach(CIProvider.allCases.filter { $0 != .githubActions }, id: \.self) { provider in
-                        Toggle(isOn: binding(for: provider)) {
-                            Label {
-                                VStack(alignment: .leading) {
-                                    Text(provider.title)
-                                    Text(provider == .xcodeCloud ? "Coming soon" : "Available in a future update")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            } icon: {
-                                Image(systemName: provider.systemImage)
-                            }
+                    Toggle("Use GitLab CI/CD", isOn: $gitlabEnabled)
+                        .toggleStyle(GreenToggleStyle())
+
+                    if gitlabEnabled {
+                        SecureField("GitLab personal access token", text: $gitlabToken)
+                        TextField("Repositories", text: $gitlabRepositories, axis: .vertical)
+                            .lineLimit(2...5)
+                        Text("Required. Use the full path, for example: group/project")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if let integrationMessage {
+                            Text(integrationMessage)
+                                .font(.caption)
+                                .foregroundStyle(.red)
                         }
-                        .disabled(true)
                     }
+
+                    Toggle(isOn: .constant(false)) {
+                        Label {
+                            VStack(alignment: .leading) {
+                                Text("Xcode Cloud")
+                                Text("Coming soon")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: CIProvider.xcodeCloud.systemImage)
+                        }
+                    }
+                    .disabled(true)
                 }
 
                 Section("Monitoring") {
@@ -79,52 +96,64 @@ struct SettingsView: View {
         .task {
             do {
                 githubToken = try KeychainStore().read(for: "github-actions") ?? ""
+                gitlabToken = try KeychainStore().read(for: "gitlab-ci") ?? ""
             } catch {
                 integrationMessage = "Could not read the saved token from Keychain."
             }
         }
     }
 
-    private func binding(for provider: CIProvider) -> Binding<Bool> {
-        Binding(
-            get: { selectedProviders.contains(provider) },
-            set: { isSelected in
-                if isSelected { selectedProviders.insert(provider) }
-                else { selectedProviders.remove(provider) }
-            }
-        )
-    }
-
     private func handleDone() {
-        guard githubEnabled else {
+        guard githubEnabled || gitlabEnabled else {
             integrationMessage = nil
             appState.isShowingSettings = false
             return
         }
 
-        let token = githubToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        let repositories = githubRepositories
-            .split(whereSeparator: { $0 == "\n" || $0 == "," })
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-
-        guard !token.isEmpty else {
-            integrationMessage = "Enter a GitHub token first."
-            return
-        }
-        guard !repositories.isEmpty else {
-            integrationMessage = "Add at least one repository."
-            return
-        }
         do {
-            try KeychainStore().save(token, for: "github-actions")
-            githubRepositories = repositories.joined(separator: "\n")
+            if githubEnabled {
+                let token = githubToken.trimmingCharacters(in: .whitespacesAndNewlines)
+                let repositories = parseRepositories(githubRepositories)
+                guard !token.isEmpty else {
+                    integrationMessage = "Enter a GitHub token first."
+                    return
+                }
+                guard !repositories.isEmpty else {
+                    integrationMessage = "Add at least one GitHub repository."
+                    return
+                }
+                try KeychainStore().save(token, for: "github-actions")
+                githubRepositories = repositories.joined(separator: "\n")
+            }
+
+            if gitlabEnabled {
+                let token = gitlabToken.trimmingCharacters(in: .whitespacesAndNewlines)
+                let repositories = parseRepositories(gitlabRepositories)
+                guard !token.isEmpty else {
+                    integrationMessage = "Enter a GitLab token first."
+                    return
+                }
+                guard !repositories.isEmpty else {
+                    integrationMessage = "Add at least one GitLab repository."
+                    return
+                }
+                try KeychainStore().save(token, for: "gitlab-ci")
+                gitlabRepositories = repositories.joined(separator: "\n")
+            }
+
             integrationMessage = nil
             Task { await appState.refresh() }
             appState.isShowingSettings = false
         } catch {
             integrationMessage = error.localizedDescription
         }
+    }
+
+    private func parseRepositories(_ value: String) -> [String] {
+        value
+            .split(whereSeparator: { $0 == "\n" || $0 == "," })
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 }
 

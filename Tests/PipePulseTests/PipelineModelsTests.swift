@@ -48,6 +48,16 @@ final class GitHubActionsProviderTests: XCTestCase {
     }
 }
 
+final class GitLabCIProviderTests: XCTestCase {
+    func testGitLabPipelineStatusMapping() {
+        XCTAssertEqual(PipelineStatus(gitLabStatus: "success"), .success)
+        XCTAssertEqual(PipelineStatus(gitLabStatus: "failed"), .failed)
+        XCTAssertEqual(PipelineStatus(gitLabStatus: "running"), .running)
+        XCTAssertEqual(PipelineStatus(gitLabStatus: "pending"), .pending)
+        XCTAssertEqual(PipelineStatus(gitLabStatus: "canceled"), .canceled)
+    }
+}
+
 @MainActor
 final class AppStateTests: XCTestCase {
     func testRefreshCalculatesDashboardCounts() async {

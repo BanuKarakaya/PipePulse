@@ -63,19 +63,41 @@ final class AppState: ObservableObject {
     }
 
     private var activeProvider: any PipelineProvider {
-        guard defaults.bool(forKey: "githubEnabled") else { return provider }
-        let token: String?
-        do {
-            token = try tokenStore.read(for: "github-actions")
-        } catch {
-            return provider
+        var configuredProviders: [any PipelineProvider] = []
+
+        if defaults.bool(forKey: "githubEnabled"),
+           let token = token(for: "github-actions"),
+           let repositories = repositories(for: "githubRepositories") {
+            configuredProviders.append(
+                GitHubActionsProvider(accessToken: token, repositoryNames: repositories)
+            )
         }
-        let repositories = (defaults.string(forKey: "githubRepositories") ?? "")
+
+        if defaults.bool(forKey: "gitlabEnabled"),
+           let token = token(for: "gitlab-ci"),
+           let repositories = repositories(for: "gitlabRepositories") {
+            configuredProviders.append(
+                GitLabCIProvider(accessToken: token, repositoryNames: repositories)
+            )
+        }
+
+        guard !configuredProviders.isEmpty else { return provider }
+        return CombinedPipelineProvider(providers: configuredProviders)
+    }
+
+    private func token(for account: String) -> String? {
+        guard let token = try? tokenStore.read(for: account), !token.isEmpty else {
+            return nil
+        }
+        return token
+    }
+
+    private func repositories(for key: String) -> [String]? {
+        let values = (defaults.string(forKey: key) ?? "")
             .split(whereSeparator: { $0 == "\n" || $0 == "," })
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        guard let token, !token.isEmpty, !repositories.isEmpty else { return provider }
-        return GitHubActionsProvider(accessToken: token, repositoryNames: repositories)
+        return values.isEmpty ? nil : values
     }
 
     func completeOnboarding() {
