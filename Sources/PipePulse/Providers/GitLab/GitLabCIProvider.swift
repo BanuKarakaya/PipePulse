@@ -91,7 +91,8 @@ private struct GitLabPipeline: Decodable {
     }
 
     func pipeline(repositoryName: String) -> Pipeline {
-        let startDate = Self.date(from: startedAt ?? createdAt) ?? .now
+        let creationDate = Self.date(from: createdAt)
+        let startDate = Self.date(from: startedAt) ?? creationDate ?? .now
         let endDate = Self.date(from: finishedAt)
         let measuredDuration = duration ?? endDate.map { max(0, $0.timeIntervalSince(startDate)) }
         return Pipeline(
@@ -101,13 +102,17 @@ private struct GitLabPipeline: Decodable {
             status: PipelineStatus(gitLabStatus: status),
             startedAt: startDate,
             duration: measuredDuration,
-            webURL: webURL ?? URL(string: "https://gitlab.com/\(repositoryName)/-/pipelines")!
+            webURL: webURL ?? URL(string: "https://gitlab.com/\(repositoryName)/-/pipelines")!,
+            createdAt: creationDate
         )
     }
 
     private static func date(from value: String?) -> Date? {
         guard let value else { return nil }
-        return ISO8601DateFormatter().date(from: value)
+        let formatter = ISO8601DateFormatter()
+        if let date = formatter.date(from: value) { return date }
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: value)
     }
 }
 

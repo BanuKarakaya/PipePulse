@@ -25,6 +25,25 @@ final class PipelineModelsTests: XCTestCase {
         XCTAssertEqual(project.latestPipeline?.id, newer.id)
         XCTAssertEqual(project.name, "demo")
     }
+
+    func testProjectLatestPipelineUsesCreationDate() {
+        let repository = Repository(id: UUID(), owner: "acme", name: "demo", provider: .gitLab, url: URL(string: "https://example.com")!)
+        let newest = Pipeline(
+            id: UUID(), name: "new", branch: "main", status: .success,
+            startedAt: .now.addingTimeInterval(-120), duration: 10,
+            webURL: repository.url.appending(path: "new"),
+            createdAt: .now
+        )
+        let older = Pipeline(
+            id: UUID(), name: "old", branch: "main", status: .failed,
+            startedAt: .now, duration: 10,
+            webURL: repository.url.appending(path: "old"),
+            createdAt: .now.addingTimeInterval(-60)
+        )
+        let project = Project(id: repository.id, repository: repository, pipelines: [older, newest])
+
+        XCTAssertEqual(project.latestPipeline?.id, newest.id)
+    }
 }
 
 final class MockPipelineProviderTests: XCTestCase {
@@ -68,9 +87,9 @@ final class AppStateTests: XCTestCase {
         await state.refresh()
 
         XCTAssertEqual(state.projects.count, 3)
-        XCTAssertEqual(state.successCount, 1)
-        XCTAssertEqual(state.failedCount, 1)
-        XCTAssertEqual(state.runningCount, 1)
+        XCTAssertEqual(state.successCount, 3)
+        XCTAssertEqual(state.failedCount, 2)
+        XCTAssertEqual(state.runningCount, 2)
         defaults.removePersistentDomain(forName: suiteName)
     }
 }

@@ -51,10 +51,11 @@ struct ProjectDetailsView: View {
                     Text("Recent runs")
                         .font(.headline)
 
+                    let recentPipelines = project.pipelines.sorted { $0.sortDate > $1.sortDate }
                     VStack(spacing: 0) {
-                        ForEach(project.pipelines.sorted { $0.startedAt > $1.startedAt }) { pipeline in
-                            PipelineDetailRow(pipeline: pipeline)
-                            if pipeline.id != project.pipelines.last?.id { Divider() }
+                        ForEach(Array(recentPipelines.enumerated()), id: \.element.id) { item in
+                            PipelineDetailRow(pipeline: item.element)
+                            if item.offset < recentPipelines.count - 1 { Divider() }
                         }
                     }
                     .padding(.horizontal, 12)

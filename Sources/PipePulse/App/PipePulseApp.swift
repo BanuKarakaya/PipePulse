@@ -7,14 +7,12 @@ struct PipePulseApp: App {
         provider: MockPipelineProvider(),
         notificationService: MacNotificationService()
     )
-    @State private var isMenuPresented = false
-
     init() {
         NSApplication.shared.setActivationPolicy(.accessory)
     }
 
     var body: some Scene {
-        MenuBarExtra(isInserted: $isMenuPresented) {
+        MenuBarExtra(isInserted: .constant(true)) {
             RootView()
                 .environmentObject(appState)
         } label: {
@@ -41,7 +39,7 @@ private struct RootView: View {
         }
         .frame(width: 420, height: 570)
         .onAppear {
-            appState.acknowledgeSuccessPulse()
+            appState.returnToDashboard()
         }
         .task(id: refreshInterval) {
             await refreshLoop()

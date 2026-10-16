@@ -96,6 +96,7 @@ private struct WorkflowRun: Decodable {
 
     var pipeline: Pipeline {
         let startDate = Self.date(from: runStartedAt ?? createdAt) ?? .now
+        let creationDate = Self.date(from: createdAt)
         let endDate = Self.date(from: updatedAt ?? createdAt)
         let duration = endDate.map { max(0, $0.timeIntervalSince(startDate)) }
         return Pipeline(
@@ -105,12 +106,16 @@ private struct WorkflowRun: Decodable {
             status: PipelineStatus(githubStatus: status, conclusion: conclusion),
             startedAt: startDate,
             duration: duration,
-            webURL: htmlURL
+            webURL: htmlURL,
+            createdAt: creationDate
         )
     }
 
     private static func date(from value: String) -> Date? {
-        ISO8601DateFormatter().date(from: value)
+        let formatter = ISO8601DateFormatter()
+        if let date = formatter.date(from: value) { return date }
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: value)
     }
 }
 

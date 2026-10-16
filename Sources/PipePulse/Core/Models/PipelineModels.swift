@@ -66,8 +66,31 @@ struct Pipeline: Identifiable, Codable, Hashable, Sendable {
     let branch: String
     let status: PipelineStatus
     let startedAt: Date
+    let createdAt: Date?
     let duration: TimeInterval?
     let webURL: URL
+
+    init(
+        id: UUID,
+        name: String,
+        branch: String,
+        status: PipelineStatus,
+        startedAt: Date,
+        duration: TimeInterval?,
+        webURL: URL,
+        createdAt: Date? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.branch = branch
+        self.status = status
+        self.startedAt = startedAt
+        self.createdAt = createdAt
+        self.duration = duration
+        self.webURL = webURL
+    }
+
+    var sortDate: Date { createdAt ?? startedAt }
 
     var durationText: String {
         guard let duration else { return status == .running ? "In progress" : "—" }
@@ -83,5 +106,5 @@ struct Project: Identifiable, Codable, Hashable, Sendable {
     let pipelines: [Pipeline]
 
     var name: String { repository.name }
-    var latestPipeline: Pipeline? { pipelines.sorted { $0.startedAt > $1.startedAt }.first }
+    var latestPipeline: Pipeline? { pipelines.max { $0.sortDate < $1.sortDate } }
 }

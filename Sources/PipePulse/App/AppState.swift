@@ -34,10 +34,10 @@ final class AppState: ObservableObject {
         projects.first { $0.id == selectedProjectID }
     }
 
-    var successCount: Int { projects.compactMap(\.latestPipeline).filter { $0.status == .success }.count }
-    var failedCount: Int { projects.compactMap(\.latestPipeline).filter { $0.status == .failed }.count }
+    var successCount: Int { projects.flatMap(\.pipelines).filter { $0.status == .success }.count }
+    var failedCount: Int { projects.flatMap(\.pipelines).filter { $0.status == .failed }.count }
     var runningCount: Int {
-        projects.compactMap(\.latestPipeline).filter { $0.status == .running || $0.status == .pending }.count
+        projects.flatMap(\.pipelines).filter { $0.status == .running || $0.status == .pending }.count
     }
 
     func refresh() async {
@@ -68,6 +68,12 @@ final class AppState: ObservableObject {
 
     func acknowledgeSuccessPulse() {
         isSuccessPulseActive = false
+    }
+
+    func returnToDashboard() {
+        selectedProjectID = nil
+        isShowingSettings = false
+        acknowledgeSuccessPulse()
     }
 
     private func containsNewSuccess(in updatedProjects: [Project], comparedWith previousProjects: [Project]) -> Bool {
