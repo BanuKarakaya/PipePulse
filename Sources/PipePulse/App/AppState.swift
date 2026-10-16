@@ -12,15 +12,18 @@ final class AppState: ObservableObject {
 
     private let provider: any PipelineProvider
     private let notificationService: any PipelineNotificationSending
+    private let tokenStore: any SecureTokenStoring
     private let defaults: UserDefaults
 
     init(
         provider: any PipelineProvider = MockPipelineProvider(),
         notificationService: any PipelineNotificationSending = NoopPipelineNotificationService(),
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        tokenStore: any SecureTokenStoring = KeychainStore()
     ) {
         self.provider = provider
         self.notificationService = notificationService
+        self.tokenStore = tokenStore
         self.defaults = defaults
         self.isShowingOnboarding = !defaults.bool(forKey: "hasCompletedOnboarding")
     }
@@ -40,7 +43,7 @@ final class AppState: ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            let loadedProjects = try await provider.fetchProjects()
+            let loadedProjects = try await activeProvider.fetchProjects()
             projects = loadedProjects
             let notificationsEnabled = defaults.object(forKey: "notificationsEnabled") as? Bool ?? true
             if notificationsEnabled {
@@ -54,6 +57,22 @@ final class AppState: ObservableObject {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    private var activeProvider: any PipelineProvider {
+        guard defaults.bool(forKey: "githubEnabled") else { return provider }
+        let token: String?
+        do {
+            token = try tokenStore.read(for: "github-actions")
+        } catch {
+            return provider
+        }
+        let repositories = (defaults.string(forKey: "githubRepositories") ?? "")
+            .split(whereSeparator: { $0 == "\n" || $0 == "," })
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard let token, !token.isEmpty, !repositories.isEmpty else { return provider }
+        return GitHubActionsProvider(accessToken: token, repositoryNames: repositories)
     }
 
     func completeOnboarding() {

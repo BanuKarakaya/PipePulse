@@ -22,6 +22,10 @@ swift test
 - `Features`: dashboard, pipeline details, settings, and onboarding screens.
 - `Components`: reusable status, summary, project, and empty-state views.
 
+## GitHub Actions setup
+
+Open Settings, enable GitHub Actions, enter a GitHub personal access token with read access to Actions, and add repositories as `owner/name` (one per line). The token is stored in macOS Keychain. If the integration is not configured, the app continues to use mock data.
+
 ## Next steps
 
 1. Add GitHub Actions and GitLab clients conforming to `PipelineProvider`.

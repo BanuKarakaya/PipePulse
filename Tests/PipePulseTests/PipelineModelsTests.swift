@@ -38,6 +38,16 @@ final class MockPipelineProviderTests: XCTestCase {
     }
 }
 
+final class GitHubActionsProviderTests: XCTestCase {
+    func testGitHubWorkflowStatusMapping() {
+        XCTAssertEqual(PipelineStatus(githubStatus: "completed", conclusion: "success"), .success)
+        XCTAssertEqual(PipelineStatus(githubStatus: "completed", conclusion: "failure"), .failed)
+        XCTAssertEqual(PipelineStatus(githubStatus: "in_progress", conclusion: nil), .running)
+        XCTAssertEqual(PipelineStatus(githubStatus: "queued", conclusion: nil), .pending)
+        XCTAssertEqual(PipelineStatus(githubStatus: "completed", conclusion: "cancelled"), .canceled)
+    }
+}
+
 @MainActor
 final class AppStateTests: XCTestCase {
     func testRefreshCalculatesDashboardCounts() async {
