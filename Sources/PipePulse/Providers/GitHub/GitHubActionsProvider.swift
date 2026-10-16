@@ -2,6 +2,7 @@ import Foundation
 
 struct GitHubActionsProvider: PipelineProvider {
     let provider: CIProvider = .githubActions
+    let sourceTitle = "GitHub Actions"
     let accessToken: String
     let repositoryNames: [String]
     let session: URLSession

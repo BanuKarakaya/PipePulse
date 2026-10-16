@@ -2,6 +2,7 @@ import Foundation
 
 protocol PipelineProvider: Sendable {
     var provider: CIProvider { get }
+    var sourceTitle: String { get }
     func fetchProjects() async throws -> [Project]
 }
 

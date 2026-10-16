@@ -105,7 +105,7 @@ struct DashboardView: View {
             Circle()
                 .fill(.green)
                 .frame(width: 7, height: 7)
-            Text("Mock data · Ready")
+            Text("\(appState.dataSourceTitle) · Ready")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()

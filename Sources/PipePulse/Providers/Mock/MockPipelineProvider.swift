@@ -2,6 +2,7 @@ import Foundation
 
 struct MockPipelineProvider: PipelineProvider {
     let provider: CIProvider = .githubActions
+    let sourceTitle = "Mock data"
 
     func fetchProjects() async throws -> [Project] {
         try await Task.sleep(for: .milliseconds(250))

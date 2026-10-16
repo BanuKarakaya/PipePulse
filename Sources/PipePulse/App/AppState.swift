@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class AppState: ObservableObject {
     @Published private(set) var projects: [Project] = []
+    @Published private(set) var dataSourceTitle = "Mock data"
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
     @Published var selectedProjectID: UUID?
@@ -43,7 +44,9 @@ final class AppState: ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            let loadedProjects = try await activeProvider.fetchProjects()
+            let selectedProvider = activeProvider
+            let loadedProjects = try await selectedProvider.fetchProjects()
+            dataSourceTitle = selectedProvider.sourceTitle
             projects = loadedProjects
             let notificationsEnabled = defaults.object(forKey: "notificationsEnabled") as? Bool ?? true
             if notificationsEnabled {
