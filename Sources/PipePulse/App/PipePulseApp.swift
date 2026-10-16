@@ -25,7 +25,6 @@ struct PipePulseApp: App {
 
 private struct RootView: View {
     @EnvironmentObject private var appState: AppState
-    @AppStorage("refreshInterval") private var refreshInterval = RefreshInterval.fiveMinutes.rawValue
 
     var body: some View {
         Group {
@@ -40,22 +39,6 @@ private struct RootView: View {
         .frame(width: 420, height: 570)
         .onAppear {
             appState.returnToDashboard()
-        }
-        .task(id: refreshInterval) {
-            await refreshLoop()
-        }
-    }
-
-    private func refreshLoop() async {
-        await appState.refresh()
-        guard refreshInterval > 0 else { return }
-        while !Task.isCancelled {
-            do {
-                try await Task.sleep(nanoseconds: UInt64(refreshInterval) * 1_000_000_000)
-                await appState.refresh()
-            } catch {
-                return
-            }
         }
     }
 }
@@ -76,5 +59,8 @@ private struct MenuBarStatusIcon: View {
         }
         .frame(width: 18, height: 18)
         .accessibilityLabel("PipePulse")
+        .task {
+            appState.startMonitoring()
+        }
     }
 }

@@ -37,6 +37,7 @@ struct GitHubActionsProvider: PipelineProvider {
         let name = parts[1]
         let endpoint = URL(string: "https://api.github.com/repos/\(owner)/\(name)/actions/runs?per_page=10")!
         var request = URLRequest(url: endpoint)
+        request.timeoutInterval = 15
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")

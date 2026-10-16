@@ -1,6 +1,13 @@
 import Foundation
 import SwiftUI
 
+private struct ProviderFetchResult: Sendable {
+    let provider: CIProvider
+    let sourceTitle: String
+    let projects: [Project]?
+    let errorMessage: String?
+}
+
 @MainActor
 final class AppState: ObservableObject {
     @Published private(set) var projects: [Project] = []
@@ -16,6 +23,7 @@ final class AppState: ObservableObject {
     private let notificationService: any PipelineNotificationSending
     private let tokenStore: any SecureTokenStoring
     private let defaults: UserDefaults
+    private var monitoringTask: Task<Void, Never>?
 
     init(
         provider: any PipelineProvider = MockPipelineProvider(),
@@ -43,27 +51,101 @@ final class AppState: ObservableObject {
     func refresh() async {
         guard !isLoading else { return }
         isLoading = true
+        defer { isLoading = false }
         errorMessage = nil
-        do {
-            let selectedProvider = activeProvider
-            let loadedProjects = try await selectedProvider.fetchProjects()
-            if containsNewSuccess(in: loadedProjects, comparedWith: projects) {
-                isSuccessPulseActive = true
-            }
-            dataSourceTitle = selectedProvider.sourceTitle
-            projects = loadedProjects
-            let notificationsEnabled = defaults.object(forKey: "notificationsEnabled") as? Bool ?? true
-            if notificationsEnabled {
-                for project in loadedProjects {
-                    if let latest = project.latestPipeline {
-                        await notificationService.notifyIfNeeded(for: latest)
+
+        let selectedProviders = activeProviders
+        let results = await withTaskGroup(of: ProviderFetchResult.self) { group in
+            for selectedProvider in selectedProviders {
+                group.addTask {
+                    do {
+                        return ProviderFetchResult(
+                            provider: selectedProvider.provider,
+                            sourceTitle: selectedProvider.sourceTitle,
+                            projects: try await selectedProvider.fetchProjects(),
+                            errorMessage: nil
+                        )
+                    } catch {
+                        return ProviderFetchResult(
+                            provider: selectedProvider.provider,
+                            sourceTitle: selectedProvider.sourceTitle,
+                            projects: nil,
+                            errorMessage: error.localizedDescription
+                        )
                     }
                 }
             }
-        } catch {
-            errorMessage = error.localizedDescription
+
+            var results: [ProviderFetchResult] = []
+            for await result in group {
+                results.append(result)
+            }
+            return results
         }
-        isLoading = false
+
+        let successfulResults = results.filter { $0.projects != nil }
+        let failedResults = results.filter { $0.projects == nil }
+        let freshProjects = successfulResults.flatMap { $0.projects ?? [] }
+
+        guard !successfulResults.isEmpty else {
+            errorMessage = failedResults.map { "\($0.sourceTitle): \($0.errorMessage ?? "Unknown error")" }
+                .joined(separator: " · ")
+            return
+        }
+
+        let freshRepositoryKeys = Set(freshProjects.map(repositoryKey(for:)))
+        let failedProviders = Set(failedResults.map(\.provider))
+        let retainedStaleProjects = projects.filter {
+            failedProviders.contains($0.repository.provider)
+                && !freshRepositoryKeys.contains(repositoryKey(for: $0))
+        }
+        let updatedProjects = (freshProjects + retainedStaleProjects)
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+
+        if containsNewSuccess(in: updatedProjects, comparedWith: projects) {
+            isSuccessPulseActive = true
+        }
+        dataSourceTitle = selectedProviders.map(\.sourceTitle).joined(separator: " + ")
+        projects = updatedProjects
+        if !failedResults.isEmpty {
+            errorMessage = "Some data may be out of date — " + failedResults
+                .map { "\($0.sourceTitle): \($0.errorMessage ?? "Unknown error")" }
+                .joined(separator: " · ")
+        }
+
+        let notificationsEnabled = defaults.object(forKey: "notificationsEnabled") as? Bool ?? true
+        if notificationsEnabled {
+            for project in freshProjects {
+                if let latest = project.latestPipeline {
+                    await notificationService.notifyIfNeeded(for: latest)
+                }
+            }
+        }
+    }
+
+    func startMonitoring() {
+        guard monitoringTask == nil else { return }
+        monitoringTask = Task { [weak self] in
+            guard let self else { return }
+            await self.refresh()
+            var lastRefresh = Date()
+
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    return
+                }
+
+                let interval = self.defaults.object(forKey: "refreshInterval") as? Int
+                    ?? RefreshInterval.fiveMinutes.rawValue
+                guard interval > 0, Date().timeIntervalSince(lastRefresh) >= Double(interval) else {
+                    continue
+                }
+                await self.refresh()
+                lastRefresh = Date()
+            }
+        }
     }
 
     func acknowledgeSuccessPulse() {
@@ -99,7 +181,7 @@ final class AppState: ObservableObject {
         "\(project.repository.provider.rawValue):\(project.repository.fullName)"
     }
 
-    private var activeProvider: any PipelineProvider {
+    private var activeProviders: [any PipelineProvider] {
         var configuredProviders: [any PipelineProvider] = []
 
         if defaults.bool(forKey: "githubEnabled"),
@@ -118,8 +200,8 @@ final class AppState: ObservableObject {
             )
         }
 
-        guard !configuredProviders.isEmpty else { return provider }
-        return CombinedPipelineProvider(providers: configuredProviders)
+        guard !configuredProviders.isEmpty else { return [provider] }
+        return configuredProviders
     }
 
     private func token(for account: String) -> String? {

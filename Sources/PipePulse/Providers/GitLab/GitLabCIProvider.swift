@@ -43,6 +43,7 @@ struct GitLabCIProvider: PipelineProvider {
         }
         let endpoint = URL(string: "\(baseURL.absoluteString)/api/v4/projects/\(encodedProject)/pipelines?per_page=10")!
         var request = URLRequest(url: endpoint)
+        request.timeoutInterval = 15
         request.httpMethod = "GET"
         request.setValue(accessToken, forHTTPHeaderField: "PRIVATE-TOKEN")
         request.setValue("application/json", forHTTPHeaderField: "Accept")

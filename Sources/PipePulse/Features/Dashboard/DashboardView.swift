@@ -101,13 +101,15 @@ struct DashboardView: View {
     }
 
     private var footer: some View {
-        HStack {
+        let hasRefreshIssue = appState.errorMessage != nil
+        return HStack {
             Circle()
-                .fill(.green)
+                .fill(hasRefreshIssue ? .red : .green)
                 .frame(width: 7, height: 7)
-            Text("\(appState.dataSourceTitle) · Ready")
+            Text(hasRefreshIssue ? "Some data may be out of date" : "\(appState.dataSourceTitle) · Ready")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(hasRefreshIssue ? .red : .secondary)
+                .help(appState.errorMessage ?? "")
             Spacer()
             Button("Quit") { NSApplication.shared.terminate(nil) }
                 .buttonStyle(.borderless)
