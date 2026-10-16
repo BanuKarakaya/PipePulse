@@ -6,6 +6,7 @@ final class AppState: ObservableObject {
     @Published private(set) var projects: [Project] = []
     @Published private(set) var dataSourceTitle = "Mock data"
     @Published private(set) var isLoading = false
+    @Published private(set) var isSuccessPulseActive = false
     @Published var errorMessage: String?
     @Published var selectedProjectID: UUID?
     @Published var isShowingSettings = false
@@ -46,6 +47,9 @@ final class AppState: ObservableObject {
         do {
             let selectedProvider = activeProvider
             let loadedProjects = try await selectedProvider.fetchProjects()
+            if containsNewSuccess(in: loadedProjects, comparedWith: projects) {
+                isSuccessPulseActive = true
+            }
             dataSourceTitle = selectedProvider.sourceTitle
             projects = loadedProjects
             let notificationsEnabled = defaults.object(forKey: "notificationsEnabled") as? Bool ?? true
@@ -60,6 +64,33 @@ final class AppState: ObservableObject {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    func acknowledgeSuccessPulse() {
+        isSuccessPulseActive = false
+    }
+
+    private func containsNewSuccess(in updatedProjects: [Project], comparedWith previousProjects: [Project]) -> Bool {
+        let previousByRepository = previousProjects.reduce(into: [String: Project]()) { projectsByKey, project in
+            projectsByKey[repositoryKey(for: project)] = project
+        }
+
+        return updatedProjects.contains { updatedProject in
+            guard
+                let previousProject = previousByRepository[repositoryKey(for: updatedProject)],
+                let previousPipeline = previousProject.latestPipeline,
+                let updatedPipeline = updatedProject.latestPipeline,
+                updatedPipeline.status == .success
+            else {
+                return false
+            }
+
+            return previousPipeline.status != .success || previousPipeline.webURL != updatedPipeline.webURL
+        }
+    }
+
+    private func repositoryKey(for project: Project) -> String {
+        "\(project.repository.provider.rawValue):\(project.repository.fullName)"
     }
 
     private var activeProvider: any PipelineProvider {
