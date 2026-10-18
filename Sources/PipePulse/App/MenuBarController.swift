@@ -103,6 +103,13 @@ final class MenuBarController: NSObject {
             let image = NSImage(size: NSSize(width: 22, height: 22))
             image.lockFocus()
             NSGraphicsContext.saveGraphicsState()
+            // Keep the status-item canvas fixed; shrink only the animated trace.
+            let scale: CGFloat = 0.8
+            let inset = 22 * (1 - scale) / 2
+            let transform = NSAffineTransform()
+            transform.translateX(by: inset, yBy: inset)
+            transform.scale(by: scale)
+            transform.concat()
             NSBezierPath(rect: NSRect(x: 1, y: 1, width: 20, height: 20)).addClip()
             let trace = NSBezierPath()
             trace.lineWidth = 1.7
