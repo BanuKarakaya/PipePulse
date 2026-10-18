@@ -40,11 +40,14 @@ final class RefreshRegressionTests: XCTestCase {
             XCTAssertFalse(state.isLoading)
             XCTAssertEqual(state.projects.first?.latestPipeline?.status, status)
             XCTAssertEqual(controller.activity, status == .running ? .running : (state.isSuccessPulseActive ? .success : .idle))
+            XCTAssertEqual(controller.isAnimating, status == .running)
             // Let the actual AppKit animation timer render multiple frames.
             try await Task.sleep(for: .milliseconds(250))
+            XCTAssertEqual(controller.isAnimating, status == .running)
         }
         state.returnToDashboard()
         XCTAssertEqual(controller.activity, .idle)
+        XCTAssertFalse(controller.isAnimating)
         await state.refresh()
         XCTAssertFalse(state.isLoading)
         XCTAssertEqual(controller.activity, .idle)

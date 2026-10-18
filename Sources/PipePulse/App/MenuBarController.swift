@@ -14,7 +14,9 @@ final class MenuBarController: NSObject {
     private(set) var activity: MenuBarActivity = .idle
     private let idleImage = NSImage(systemSymbolName: "waveform.path.ecg", accessibilityDescription: "PipePulse")!
     private let runningFrames = MenuBarController.makeFrames(color: .systemBlue)
-    private let successFrames = MenuBarController.makeFrames(color: .systemGreen)
+    private let successImage = MenuBarController.makeSuccessImage()
+
+    var isAnimating: Bool { timer?.isValid == true }
 
     init(appState: AppState) {
         self.appState = appState
@@ -45,7 +47,7 @@ final class MenuBarController: NSObject {
         frameIndex = 0
         statusItem.button?.toolTip = activity == .running ? "PipePulse — Pipelines active" : "PipePulse"
         renderFrame()
-        guard activity != .idle else { return }
+        guard activity == .running else { return }
         let timer = Timer(timeInterval: 1.0 / 24.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.advanceFrame() }
         }
@@ -63,7 +65,7 @@ final class MenuBarController: NSObject {
         switch activity {
         case .idle: statusItem.button?.image = idleImage
         case .running: statusItem.button?.image = runningFrames[frameIndex]
-        case .success: statusItem.button?.image = successFrames[frameIndex]
+        case .success: statusItem.button?.image = successImage
         }
     }
 
@@ -85,6 +87,20 @@ final class MenuBarController: NSObject {
         NSStatusBar.system.removeStatusItem(statusItem)
     }
 
+    private static func makeSuccessImage() -> NSImage {
+        let symbol = NSImage(systemSymbolName: "waveform.path.ecg", accessibilityDescription: "PipePulse — Success")!
+            .withSymbolConfiguration(.init(pointSize: 17, weight: .medium))!
+        let image = NSImage(size: NSSize(width: 22, height: 22))
+        image.lockFocus()
+        let rect = NSRect(x: 2, y: 2, width: 18, height: 18)
+        symbol.draw(in: rect)
+        NSColor.systemGreen.setFill()
+        rect.fill(using: .sourceIn)
+        image.unlockFocus()
+        image.isTemplate = false
+        return image
+    }
+
     private static func makeFrames(color: NSColor) -> [NSImage] {
         // Pre-render one seamless running cycle. Only the limbs move; the
         // figure stays centered inside the same small, fixed status-item image.
@@ -96,12 +112,7 @@ final class MenuBarController: NSObject {
             let image = NSImage(size: NSSize(width: 22, height: 22))
             image.lockFocus()
             NSGraphicsContext.saveGraphicsState()
-            let scale: CGFloat = 0.8
-            let inset = 22 * (1 - scale) / 2
-            let transform = NSAffineTransform()
-            transform.translateX(by: inset, yBy: inset)
-            transform.scale(by: scale)
-            transform.concat()
+            // Draw at full size (25% larger than the previous 0.8 scale).
             NSBezierPath(rect: NSRect(x: 1, y: 1, width: 20, height: 20)).addClip()
 
             func joint(from origin: NSPoint, angle: CGFloat, length: CGFloat) -> NSPoint {
