@@ -139,7 +139,8 @@ final class AppState: ObservableObject {
                 }
 
                 let interval = self.defaults.integer(forKey: "refreshInterval")
-                guard interval > 0, Date().timeIntervalSince(lastRefresh) >= Double(interval) else {
+                let effectiveInterval = self.runningCount > 0 ? min(interval, 5) : interval
+                guard effectiveInterval > 0, Date().timeIntervalSince(lastRefresh) >= Double(effectiveInterval) else {
                     continue
                 }
                 await self.refresh()
@@ -150,6 +151,11 @@ final class AppState: ObservableObject {
 
     func acknowledgeSuccessPulse() {
         isSuccessPulseActive = false
+    }
+
+    func stopMonitoring() {
+        monitoringTask?.cancel()
+        monitoringTask = nil
     }
 
     func returnToDashboard() {

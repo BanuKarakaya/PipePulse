@@ -1,5 +1,16 @@
 import Foundation
 
+enum MenuBarActivity: Equatable {
+    case idle, running, success
+
+    static func resolve(projects: [Project], successPulse: Bool) -> Self {
+        if projects.contains(where: { $0.pipelines.contains { $0.status == .running || $0.status == .pending } }) {
+            return .running
+        }
+        return successPulse ? .success : .idle
+    }
+}
+
 enum PipelineStatus: String, CaseIterable, Codable, Hashable, Sendable {
     case success
     case failed
