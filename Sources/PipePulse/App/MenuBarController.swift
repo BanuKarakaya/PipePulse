@@ -46,10 +46,10 @@ final class MenuBarController: NSObject {
         statusItem.button?.toolTip = activity == .running ? "PipePulse — Pipelines active" : "PipePulse"
         renderFrame()
         guard activity != .idle else { return }
-        let timer = Timer(timeInterval: 1.0 / 12.0, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 1.0 / 24.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.advanceFrame() }
         }
-        timer.tolerance = 0.02
+        timer.tolerance = 0.01
         self.timer = timer
         RunLoop.main.add(timer, forMode: .common)
     }
@@ -86,17 +86,41 @@ final class MenuBarController: NSObject {
     }
 
     private static func makeFrames(color: NSColor) -> [NSImage] {
-        let symbol = NSImage(systemSymbolName: "waveform.path.ecg", accessibilityDescription: nil)!
-            .withSymbolConfiguration(.init(pointSize: 17, weight: .medium))!
-        return (0..<12).map { index in
-            let pulse = (1 - cos(Double(index) / 12 * 2 * .pi)) / 2
-            let side = 17 + 3 * pulse
+        // A periodic ECG trace moves right through a fixed viewport. Matching
+        // baseline endpoints make the wrap seamless; amplitude never changes.
+        let period: CGFloat = 20
+        let waveform: [NSPoint] = [
+            NSPoint(x: 0, y: 0), NSPoint(x: 3, y: 0),
+            NSPoint(x: 4, y: 1.5), NSPoint(x: 5, y: 0),
+            NSPoint(x: 7, y: 0), NSPoint(x: 8, y: -2),
+            NSPoint(x: 9.5, y: 7), NSPoint(x: 11.5, y: -5),
+            NSPoint(x: 13, y: 0), NSPoint(x: 15, y: 0),
+            NSPoint(x: 16.5, y: 2), NSPoint(x: 18, y: 0),
+            NSPoint(x: period, y: 0)
+        ]
+        return (0..<24).map { index in
+            let offset = CGFloat(index) / 24 * period
             let image = NSImage(size: NSSize(width: 22, height: 22))
             image.lockFocus()
-            let rect = NSRect(x: (22 - side) / 2, y: (22 - side) / 2, width: side, height: side)
-            symbol.draw(in: rect)
-            color.withAlphaComponent(0.65 + 0.35 * pulse).setFill()
-            rect.fill(using: .sourceIn)
+            NSGraphicsContext.saveGraphicsState()
+            NSBezierPath(rect: NSRect(x: 1, y: 1, width: 20, height: 20)).addClip()
+            let trace = NSBezierPath()
+            trace.lineWidth = 1.7
+            trace.lineJoinStyle = .round
+            trace.lineCapStyle = .round
+            for tile in -2...1 {
+                for (pointIndex, point) in waveform.enumerated() {
+                    let position = NSPoint(x: 1 + CGFloat(tile) * period + point.x + offset, y: 10 + point.y)
+                    if tile == -2 && pointIndex == 0 {
+                        trace.move(to: position)
+                    } else {
+                        trace.line(to: position)
+                    }
+                }
+            }
+            color.setStroke()
+            trace.stroke()
+            NSGraphicsContext.restoreGraphicsState()
             image.unlockFocus()
             image.isTemplate = false
             return image
