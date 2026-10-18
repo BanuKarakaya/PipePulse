@@ -86,24 +86,16 @@ final class MenuBarController: NSObject {
     }
 
     private static func makeFrames(color: NSColor) -> [NSImage] {
-        // A periodic ECG trace moves right through a fixed viewport. Matching
-        // baseline endpoints make the wrap seamless; amplitude never changes.
-        let period: CGFloat = 20
-        let waveform: [NSPoint] = [
-            NSPoint(x: 0, y: 0), NSPoint(x: 3, y: 0),
-            NSPoint(x: 4, y: 1.5), NSPoint(x: 5, y: 0),
-            NSPoint(x: 7, y: 0), NSPoint(x: 8, y: -2),
-            NSPoint(x: 9.5, y: 7), NSPoint(x: 11.5, y: -5),
-            NSPoint(x: 13, y: 0), NSPoint(x: 15, y: 0),
-            NSPoint(x: 16.5, y: 2), NSPoint(x: 18, y: 0),
-            NSPoint(x: period, y: 0)
-        ]
+        // Pre-render one seamless running cycle. Only the limbs move; the
+        // figure stays centered inside the same small, fixed status-item image.
         return (0..<24).map { index in
-            let offset = CGFloat(index) / 24 * period
+            let phase = CGFloat(index) / 24 * 2 * .pi
+            let bob = 0.25 * cos(2 * phase)
+            let hip = NSPoint(x: 10, y: 9 + bob)
+            let shoulder = NSPoint(x: 11.5, y: 14 + bob)
             let image = NSImage(size: NSSize(width: 22, height: 22))
             image.lockFocus()
             NSGraphicsContext.saveGraphicsState()
-            // Keep the status-item canvas fixed; shrink only the animated trace.
             let scale: CGFloat = 0.8
             let inset = 22 * (1 - scale) / 2
             let transform = NSAffineTransform()
@@ -111,22 +103,41 @@ final class MenuBarController: NSObject {
             transform.scale(by: scale)
             transform.concat()
             NSBezierPath(rect: NSRect(x: 1, y: 1, width: 20, height: 20)).addClip()
-            let trace = NSBezierPath()
-            trace.lineWidth = 1.7
-            trace.lineJoinStyle = .round
-            trace.lineCapStyle = .round
-            for tile in -2...1 {
-                for (pointIndex, point) in waveform.enumerated() {
-                    let position = NSPoint(x: 1 + CGFloat(tile) * period + point.x + offset, y: 10 + point.y)
-                    if tile == -2 && pointIndex == 0 {
-                        trace.move(to: position)
-                    } else {
-                        trace.line(to: position)
-                    }
-                }
+
+            func joint(from origin: NSPoint, angle: CGFloat, length: CGFloat) -> NSPoint {
+                NSPoint(x: origin.x + sin(angle) * length, y: origin.y - cos(angle) * length)
             }
+
+            func stroke(_ points: [NSPoint], opacity: CGFloat = 1) {
+                let path = NSBezierPath()
+                path.lineWidth = 1.7
+                path.lineJoinStyle = .round
+                path.lineCapStyle = .round
+                path.move(to: points[0])
+                for point in points.dropFirst() { path.line(to: point) }
+                color.withAlphaComponent(opacity).setStroke()
+                path.stroke()
+            }
+
+            // Opposite arms/legs swing together, with a bent trailing knee.
+            for side in [CGFloat(-1), CGFloat(1)] {
+                let swing = side * sin(phase)
+                let thighAngle = 0.85 * swing
+                let knee = joint(from: hip, angle: thighAngle, length: 3.8)
+                let kneeBend = 0.35 + 1.1 * max(0, -swing)
+                let foot = joint(from: knee, angle: thighAngle - kneeBend, length: 3.5)
+                let armAngle = -0.9 * swing
+                let elbow = joint(from: shoulder, angle: armAngle, length: 2.8)
+                let hand = joint(from: elbow, angle: armAngle + 1.6, length: 2.4)
+                let opacity: CGFloat = side < 0 ? 0.55 : 1
+                stroke([hip, knee, foot], opacity: opacity)
+                stroke([shoulder, elbow, hand], opacity: opacity)
+            }
+            stroke([hip, shoulder, NSPoint(x: 12, y: 15.8 + bob)])
+            let head = NSBezierPath(ovalIn: NSRect(x: 10.6, y: 15.8 + bob, width: 3.2, height: 3.2))
+            head.lineWidth = 1.5
             color.setStroke()
-            trace.stroke()
+            head.stroke()
             NSGraphicsContext.restoreGraphicsState()
             image.unlockFocus()
             image.isTemplate = false
