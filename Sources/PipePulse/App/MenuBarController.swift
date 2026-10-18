@@ -13,7 +13,7 @@ final class MenuBarController: NSObject {
     private var frameIndex = 0
     private(set) var activity: MenuBarActivity = .idle
     private let idleImage = NSImage(systemSymbolName: "waveform.path.ecg", accessibilityDescription: "PipePulse")!
-    private let runningFrames = MenuBarController.makeFrames(color: .systemBlue)
+    private let runningFrames = MenuBarController.makeFrames(color: .white)
     private let successImage = MenuBarController.makeSuccessImage()
 
     var isAnimating: Bool { timer?.isValid == true }
@@ -107,7 +107,7 @@ final class MenuBarController: NSObject {
         return (0..<24).map { index in
             let phase = CGFloat(index) / 24 * 2 * .pi
             let bob = 0.25 * cos(2 * phase)
-            let hip = NSPoint(x: 10, y: 9 + bob)
+            let hip = NSPoint(x: 10, y: 8.5 + bob)
             let shoulder = NSPoint(x: 11.5, y: 14 + bob)
             let image = NSImage(size: NSSize(width: 22, height: 22))
             image.lockFocus()
@@ -121,7 +121,7 @@ final class MenuBarController: NSObject {
 
             func stroke(_ points: [NSPoint], opacity: CGFloat = 1) {
                 let path = NSBezierPath()
-                path.lineWidth = 1.7
+                path.lineWidth = 2.2
                 path.lineJoinStyle = .round
                 path.lineCapStyle = .round
                 path.move(to: points[0])
@@ -134,21 +134,20 @@ final class MenuBarController: NSObject {
             for side in [CGFloat(-1), CGFloat(1)] {
                 let swing = side * sin(phase)
                 let thighAngle = 0.85 * swing
-                let knee = joint(from: hip, angle: thighAngle, length: 3.8)
+                let knee = joint(from: hip, angle: thighAngle, length: 4.4)
                 let kneeBend = 0.35 + 1.1 * max(0, -swing)
-                let foot = joint(from: knee, angle: thighAngle - kneeBend, length: 3.5)
+                let foot = joint(from: knee, angle: thighAngle - kneeBend, length: 4.0)
                 let armAngle = -0.9 * swing
-                let elbow = joint(from: shoulder, angle: armAngle, length: 2.8)
-                let hand = joint(from: elbow, angle: armAngle + 1.6, length: 2.4)
+                let elbow = joint(from: shoulder, angle: armAngle, length: 3.2)
+                let hand = joint(from: elbow, angle: armAngle + 1.6, length: 2.8)
                 let opacity: CGFloat = side < 0 ? 0.55 : 1
                 stroke([hip, knee, foot], opacity: opacity)
                 stroke([shoulder, elbow, hand], opacity: opacity)
             }
             stroke([hip, shoulder, NSPoint(x: 12, y: 15.8 + bob)])
-            let head = NSBezierPath(ovalIn: NSRect(x: 10.6, y: 15.8 + bob, width: 3.2, height: 3.2))
-            head.lineWidth = 1.5
-            color.setStroke()
-            head.stroke()
+            let head = NSBezierPath(ovalIn: NSRect(x: 10.2, y: 15.7 + bob, width: 4, height: 4))
+            color.setFill()
+            head.fill()
             NSGraphicsContext.restoreGraphicsState()
             image.unlockFocus()
             image.isTemplate = false
