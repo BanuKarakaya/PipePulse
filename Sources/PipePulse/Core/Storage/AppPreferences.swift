@@ -3,7 +3,7 @@ import Foundation
 struct AppPreferences: Sendable {
     static let suiteName = "com.pipepulse.preferences"
 
-    var refreshInterval: RefreshInterval = .fiveMinutes
+    var refreshInterval: RefreshInterval = .oneMinute
     var notificationsEnabled = true
     var isOnboardingComplete = false
 }

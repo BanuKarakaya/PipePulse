@@ -51,7 +51,7 @@ struct ProjectDetailsView: View {
                     Text("Recent runs")
                         .font(.headline)
 
-                    let recentPipelines = project.pipelines.sorted { $0.sortDate > $1.sortDate }
+                    let recentPipelines = project.pipelines.sorted { $0.isNewer(than: $1) }
                     VStack(spacing: 0) {
                         ForEach(Array(recentPipelines.enumerated()), id: \.element.id) { item in
                             PipelineDetailRow(pipeline: item.element)

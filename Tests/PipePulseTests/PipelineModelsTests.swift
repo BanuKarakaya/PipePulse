@@ -44,6 +44,23 @@ final class PipelineModelsTests: XCTestCase {
 
         XCTAssertEqual(project.latestPipeline?.id, newest.id)
     }
+
+    func testProjectLatestPipelineUsesRemoteSequenceWhenDatesAreUnavailable() {
+        let repository = Repository(id: UUID(), owner: "acme", name: "demo", provider: .gitLab, url: URL(string: "https://example.com")!)
+        let latestSuccessful = Pipeline(
+            id: UUID(), name: "latest", branch: "main", status: .success,
+            startedAt: .now, duration: 10, webURL: repository.url,
+            remoteSequence: 42
+        )
+        let olderRunning = Pipeline(
+            id: UUID(), name: "older", branch: "main", status: .running,
+            startedAt: .now, duration: nil, webURL: repository.url,
+            remoteSequence: 41
+        )
+        let project = Project(id: repository.id, repository: repository, pipelines: [latestSuccessful, olderRunning])
+
+        XCTAssertEqual(project.latestPipeline?.id, latestSuccessful.id)
+    }
 }
 
 final class MockPipelineProviderTests: XCTestCase {

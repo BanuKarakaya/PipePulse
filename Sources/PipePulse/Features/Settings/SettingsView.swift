@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
-    @AppStorage("refreshInterval") private var refreshInterval = RefreshInterval.fiveMinutes.rawValue
+    @AppStorage("refreshInterval") private var refreshInterval = RefreshInterval.oneMinute.rawValue
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("githubEnabled") private var githubEnabled = false
     @AppStorage("githubRepositories") private var githubRepositories = ""

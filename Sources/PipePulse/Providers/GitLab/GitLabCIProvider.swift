@@ -41,9 +41,10 @@ struct GitLabCIProvider: PipelineProvider {
         guard let encodedProject = repositoryName.addingPercentEncoding(withAllowedCharacters: allowedCharacters) else {
             throw PipelineProviderError.invalidResponse
         }
-        let endpoint = URL(string: "\(baseURL.absoluteString)/api/v4/projects/\(encodedProject)/pipelines?per_page=10")!
+        let endpoint = URL(string: "\(baseURL.absoluteString)/api/v4/projects/\(encodedProject)/pipelines?per_page=10&order_by=id&sort=desc")!
         var request = URLRequest(url: endpoint)
         request.timeoutInterval = 15
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.httpMethod = "GET"
         request.setValue(accessToken, forHTTPHeaderField: "PRIVATE-TOKEN")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -97,15 +98,21 @@ private struct GitLabPipeline: Decodable {
         let endDate = Self.date(from: finishedAt)
         let measuredDuration = duration ?? endDate.map { max(0, $0.timeIntervalSince(startDate)) }
         return Pipeline(
-            id: UUID(),
+            id: Self.stableUUID(for: id),
             name: "GitLab pipeline #\(id)",
             branch: ref ?? "unknown",
             status: PipelineStatus(gitLabStatus: status),
             startedAt: startDate,
             duration: measuredDuration,
             webURL: webURL ?? URL(string: "https://gitlab.com/\(repositoryName)/-/pipelines")!,
-            createdAt: creationDate
+            createdAt: creationDate,
+            remoteSequence: Int64(id)
         )
+    }
+
+    private static func stableUUID(for id: Int) -> UUID {
+        let suffix = String(format: "%012d", id)
+        return UUID(uuidString: "00000000-0000-0000-0000-\(suffix)") ?? UUID()
     }
 
     private static func date(from value: String?) -> Date? {

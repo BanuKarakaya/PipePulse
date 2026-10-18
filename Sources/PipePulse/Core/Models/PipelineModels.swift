@@ -67,6 +67,7 @@ struct Pipeline: Identifiable, Codable, Hashable, Sendable {
     let status: PipelineStatus
     let startedAt: Date
     let createdAt: Date?
+    let remoteSequence: Int64?
     let duration: TimeInterval?
     let webURL: URL
 
@@ -78,7 +79,8 @@ struct Pipeline: Identifiable, Codable, Hashable, Sendable {
         startedAt: Date,
         duration: TimeInterval?,
         webURL: URL,
-        createdAt: Date? = nil
+        createdAt: Date? = nil,
+        remoteSequence: Int64? = nil
     ) {
         self.id = id
         self.name = name
@@ -86,11 +88,26 @@ struct Pipeline: Identifiable, Codable, Hashable, Sendable {
         self.status = status
         self.startedAt = startedAt
         self.createdAt = createdAt
+        self.remoteSequence = remoteSequence
         self.duration = duration
         self.webURL = webURL
     }
 
     var sortDate: Date { createdAt ?? startedAt }
+
+    func isNewer(than other: Pipeline) -> Bool {
+        if let remoteSequence, let otherSequence = other.remoteSequence, remoteSequence != otherSequence {
+            return remoteSequence > otherSequence
+        }
+        return sortDate > other.sortDate
+    }
+
+    func isOlder(than other: Pipeline) -> Bool {
+        if let remoteSequence, let otherSequence = other.remoteSequence, remoteSequence != otherSequence {
+            return remoteSequence < otherSequence
+        }
+        return sortDate < other.sortDate
+    }
 
     var durationText: String {
         guard let duration else { return status == .running ? "In progress" : "—" }
@@ -106,5 +123,5 @@ struct Project: Identifiable, Codable, Hashable, Sendable {
     let pipelines: [Pipeline]
 
     var name: String { repository.name }
-    var latestPipeline: Pipeline? { pipelines.max { $0.sortDate < $1.sortDate } }
+    var latestPipeline: Pipeline? { pipelines.max { $0.isOlder(than: $1) } }
 }

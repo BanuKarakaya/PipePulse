@@ -3,12 +3,16 @@ import AppKit
 
 @main
 struct PipePulseApp: App {
-    @StateObject private var appState = AppState(
-        provider: MockPipelineProvider(),
-        notificationService: MacNotificationService()
-    )
+    @StateObject private var appState: AppState
+
     init() {
         NSApplication.shared.setActivationPolicy(.accessory)
+        let state = AppState(
+            provider: MockPipelineProvider(),
+            notificationService: MacNotificationService()
+        )
+        _appState = StateObject(wrappedValue: state)
+        state.startMonitoring()
     }
 
     var body: some Scene {
@@ -59,8 +63,5 @@ private struct MenuBarStatusIcon: View {
         }
         .frame(width: 18, height: 18)
         .accessibilityLabel("PipePulse")
-        .task {
-            appState.startMonitoring()
-        }
     }
 }

@@ -38,6 +38,7 @@ struct GitHubActionsProvider: PipelineProvider {
         let endpoint = URL(string: "https://api.github.com/repos/\(owner)/\(name)/actions/runs?per_page=10")!
         var request = URLRequest(url: endpoint)
         request.timeoutInterval = 15
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
@@ -108,7 +109,8 @@ private struct WorkflowRun: Decodable {
             startedAt: startDate,
             duration: duration,
             webURL: htmlURL,
-            createdAt: creationDate
+            createdAt: creationDate,
+            remoteSequence: Int64(id)
         )
     }
 
