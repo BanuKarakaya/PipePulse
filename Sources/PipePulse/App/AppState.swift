@@ -35,6 +35,7 @@ final class AppState: ObservableObject {
         self.notificationService = notificationService
         self.tokenStore = tokenStore
         self.defaults = defaults
+        defaults.register(defaults: ["refreshInterval": RefreshInterval.oneMinute.rawValue])
         self.isShowingOnboarding = !defaults.bool(forKey: "hasCompletedOnboarding")
     }
 
@@ -137,8 +138,7 @@ final class AppState: ObservableObject {
                     return
                 }
 
-                let interval = self.defaults.object(forKey: "refreshInterval") as? Int
-                    ?? RefreshInterval.fiveMinutes.rawValue
+                let interval = self.defaults.integer(forKey: "refreshInterval")
                 guard interval > 0, Date().timeIntervalSince(lastRefresh) >= Double(interval) else {
                     continue
                 }

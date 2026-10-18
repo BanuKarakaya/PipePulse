@@ -96,6 +96,15 @@ final class GitLabCIProviderTests: XCTestCase {
 
 @MainActor
 final class AppStateTests: XCTestCase {
+    func testRefreshIntervalDefaultsToOneMinute() {
+        let suiteName = "PipePulseTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        _ = AppState(defaults: defaults)
+
+        XCTAssertEqual(defaults.integer(forKey: "refreshInterval"), RefreshInterval.oneMinute.rawValue)
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
     func testRefreshCalculatesDashboardCounts() async {
         let suiteName = "PipePulseTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
