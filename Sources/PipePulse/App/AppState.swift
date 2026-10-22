@@ -100,7 +100,12 @@ final class AppState: ObservableObject {
             failedProviders.contains($0.repository.provider)
                 && !freshRepositoryKeys.contains(repositoryKey(for: $0))
         }
-        let updatedProjects = (freshProjects + retainedStaleProjects)
+        let updatedProjects: [Project] = (freshProjects + retainedStaleProjects)
+            .map { (fresh: Project) -> Project in
+                // Providers construct fresh UUIDs. Keep navigation stable during polling.
+                let existing = projects.first { repositoryKey(for: $0) == repositoryKey(for: fresh) }
+                return Project(id: existing?.id ?? fresh.id, repository: fresh.repository, pipelines: fresh.pipelines)
+            }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
         if containsNewSuccess(in: updatedProjects, comparedWith: projects) {
@@ -162,6 +167,10 @@ final class AppState: ObservableObject {
         selectedProjectID = nil
         isShowingSettings = false
         acknowledgeSuccessPulse()
+    }
+
+    func diagnosticsProvider(for repository: Repository) -> (any PipelineDiagnosticsProviding)? {
+        activeProviders.first { $0.provider == repository.provider } as? any PipelineDiagnosticsProviding
     }
 
     private func containsNewSuccess(in updatedProjects: [Project], comparedWith previousProjects: [Project]) -> Bool {

@@ -4,8 +4,21 @@ import AppKit
 struct ProjectDetailsView: View {
     @EnvironmentObject private var appState: AppState
     let project: Project
+    @State private var failedPipeline: Pipeline?
 
     var body: some View {
+        if let pipeline = failedPipeline {
+            FailureDetailsView(repository: project.repository, pipeline: pipeline,
+                               provider: appState.diagnosticsProvider(for: project.repository)) {
+                failedPipeline = nil
+            }
+            .id(pipeline.id)
+        } else {
+            projectContent
+        }
+    }
+
+    private var projectContent: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Button {
@@ -54,7 +67,7 @@ struct ProjectDetailsView: View {
                     let recentPipelines = project.pipelines.sorted { $0.isNewer(than: $1) }
                     VStack(spacing: 0) {
                         ForEach(Array(recentPipelines.enumerated()), id: \.element.id) { item in
-                            PipelineDetailRow(pipeline: item.element)
+                            PipelineDetailRow(pipeline: item.element) { failedPipeline = item.element }
                             if item.offset < recentPipelines.count - 1 { Divider() }
                         }
                     }
@@ -69,8 +82,34 @@ struct ProjectDetailsView: View {
 
 private struct PipelineDetailRow: View {
     let pipeline: Pipeline
+    let inspectFailure: () -> Void
 
     var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            if pipeline.status == .failed {
+                Button(action: inspectFailure) {
+                    rowContent
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                    .buttonStyle(.plain)
+                    .help("Inspect failed jobs and logs")
+            } else {
+                rowContent.frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Button {
+                NSWorkspace.shared.open(pipeline.webURL)
+            } label: {
+                Image(systemName: "arrow.up.right")
+                    .font(.caption)
+            }
+            .buttonStyle(.borderless)
+            .help("Open pipeline")
+        }
+        .padding(.vertical, 12)
+    }
+
+    private var rowContent: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: pipeline.status.systemImage)
                 .foregroundStyle(statusColor)
@@ -92,17 +131,11 @@ private struct PipelineDetailRow: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                if pipeline.status == .failed {
+                    Text("Inspect failure ›").font(.caption).foregroundStyle(.tint)
+                }
             }
-            Button {
-                NSWorkspace.shared.open(pipeline.webURL)
-            } label: {
-                Image(systemName: "arrow.up.right")
-                    .font(.caption)
-            }
-            .buttonStyle(.borderless)
-            .help("Open pipeline")
         }
-        .padding(.vertical, 12)
     }
 
     private var statusColor: Color {
